@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/PGVedioFactory.iml" filepath="$PROJECT_DIR$/PGVedioFactory.iml" />
+      <module fileurl="file://$PROJECT_DIR$/VedioFactory/VedioFactory.iml" filepath="$PROJECT_DIR$/VedioFactory/VedioFactory.iml" />
+    </modules>
+  </component>
+</project>
