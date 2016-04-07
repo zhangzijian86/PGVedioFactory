@@ -15,6 +15,7 @@ import java.nio.ByteBuffer;
 public class AudioEncoder {
 
     private MediaCodec mediaCodec;
+    private BufferedOutputStream outputStream;
     private String mediaType = "OMX.google.aac.encoder";
 
     ByteBuffer[] inputBuffers = null;
@@ -24,11 +25,23 @@ public class AudioEncoder {
     // "audio/mp4a-latm";
 
     public AudioEncoder() {
+        File f = new File(Environment.getExternalStorageDirectory(),
+                "20160330/audio_encoded.aac");
+        touch(f);
+        try {
+            outputStream = new BufferedOutputStream(new FileOutputStream(f));
+            Log.e("AudioEncoder", "outputStream initialized");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // mediaCodec = MediaCodec.createEncoderByType("audio/mp4a-latm");
         try {
             mediaCodec = MediaCodec.createByCodecName(mediaType);
         }catch (Exception e) {
             e.printStackTrace();
         }
+
         final int kSampleRates[] = { 8000, 11025, 22050, 44100, 48000 };
         final int kBitRates[] = { 64000,96000,128000 };
         MediaFormat mediaFormat = MediaFormat.createAudioFormat(
@@ -37,6 +50,10 @@ public class AudioEncoder {
                 MediaCodecInfo.CodecProfileLevel.AACObjectLC);
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, kBitRates[1]);
         mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 8192);// It will
+        // increase
+        // capacity
+        // of
+        // inputBuffers
         mediaCodec.configure(mediaFormat, null, null,
                 MediaCodec.CONFIGURE_FLAG_ENCODE);
         mediaCodec.start();
@@ -49,21 +66,26 @@ public class AudioEncoder {
         try {
             mediaCodec.stop();
             mediaCodec.release();
+            outputStream.flush();
+            outputStream.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     // called AudioRecord's read
-    public void offerEncoder(byte[] input, byte[] output) {
+    public synchronized void offerEncoder(byte[] input) {
         Log.e("AudioEncoder", input.length + " is coming");
-        int pos = 0;
+
         int inputBufferIndex = mediaCodec.dequeueInputBuffer(-1);
         if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
             inputBuffer.clear();
+
             inputBuffer.put(input);
-            mediaCodec.queueInputBuffer(inputBufferIndex, 0, input.length, 0, 0);
+
+            mediaCodec
+                    .queueInputBuffer(inputBufferIndex, 0, input.length, 0, 0);
         }
 
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
@@ -84,13 +106,36 @@ public class AudioEncoder {
             outputBuffer.get(outData, 7, outBitsSize);
             outputBuffer.position(bufferInfo.offset);
 
-            System.arraycopy(outData, 0, output, pos, outData.length);
-            pos += outData.length;
+            // byte[] outData = new byte[bufferInfo.size];
+            try {
+                outputStream.write(outData, 0, outData.length);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            Log.e("AudioEncoder", outData.length + " bytes written");
 
             mediaCodec.releaseOutputBuffer(outputBufferIndex, false);
             outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
 
         }
+
+        // Without ADTS header
+		/*
+		 * while (outputBufferIndex >= 0) { ByteBuffer outputBuffer =
+		 * outputBuffers[outputBufferIndex]; byte[] outData = new
+		 * byte[bufferInfo.size];
+		 *
+		 * outputBuffer.get(outData); try { outputStream.write(outData, 0,
+		 * outData.length); } catch (IOException e) { // TODO Auto-generated
+		 * catch block e.printStackTrace(); } Log.e("AudioEncoder",
+		 * outData.length + " bytes written");
+		 *
+		 * mediaCodec.releaseOutputBuffer(outputBufferIndex, false);
+		 * outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
+		 *
+		 * }
+		 */
     }
 
     /**
@@ -113,5 +158,14 @@ public class AudioEncoder {
         packet[4] = (byte) ((packetLen & 0x7FF) >> 3);
         packet[5] = (byte) (((packetLen & 7) << 5) + 0x1F);
         packet[6] = (byte) 0xFC;
+    }
+
+    public void touch(File f) {
+        try {
+            if (!f.exists())
+                f.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

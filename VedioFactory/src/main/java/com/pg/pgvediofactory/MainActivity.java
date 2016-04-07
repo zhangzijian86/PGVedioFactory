@@ -32,6 +32,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import com.pg.pgvediofactory.camera.AvcEncoder;
+import com.pg.pgvediofactory.mic.AudioEncoder;
+
 import java.nio.ByteBuffer;
 
 
@@ -50,6 +52,7 @@ public class MainActivity extends Activity implements
     private int bitrate = 2500000;
     private byte[] h264 = new byte[width*height*3/2];
     private AvcEncoder avcCodec;
+    private AudioEncoder audioEncoder;
     private int flag;
     private int pushFlag;
 
@@ -62,7 +65,7 @@ public class MainActivity extends Activity implements
     // 音频数据格式:PCM 16位每个样本。保证设备支持。PCM 8位每个样本。不一定能得到设备支持。
     private static int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
     // 缓冲区字节大小
-    private int bufferSizeInBytes = 0;
+    private int bufferSizeInBytes = 4096;
     private Button Start;
     private Button Stop;
     private AudioRecord audioRecord;
@@ -89,11 +92,12 @@ public class MainActivity extends Activity implements
 
         //MediaCodec初始化
         avcCodec = new AvcEncoder(width,height,framerate,bitrate);
+        audioEncoder = new AudioEncoder();
 
         //=====音频==========
         // 获得缓冲区字节大小
-        bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz,
-                channelConfig, audioFormat);
+//        bufferSizeInBytes = AudioRecord.getMinBufferSize(sampleRateInHz,
+//                channelConfig, audioFormat);
         // 创建AudioRecord对象
         audioRecord = new AudioRecord(audioSource, sampleRateInHz,
                 channelConfig, audioFormat, bufferSizeInBytes);
@@ -133,6 +137,7 @@ public class MainActivity extends Activity implements
     private void writeDateTOFile() {
         // new一个byte数组用来存一些字节数据，大小为缓冲区大小
         byte[] audiodata = new byte[bufferSizeInBytes];
+        byte[] audiooutdata = new byte[bufferSizeInBytes];
         FileOutputStream fos = null;
         int readsize = 0;
         try {
@@ -148,6 +153,7 @@ public class MainActivity extends Activity implements
             readsize = audioRecord.read(audiodata, 0, bufferSizeInBytes);
             if (AudioRecord.ERROR_INVALID_OPERATION != readsize) {
                 try {
+                    audioEncoder.offerEncoder(audiodata);
                     fos.write(audiodata);
                 } catch (IOException e) {
                     e.printStackTrace();
