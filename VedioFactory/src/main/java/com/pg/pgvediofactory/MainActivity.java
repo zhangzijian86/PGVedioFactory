@@ -356,7 +356,9 @@ public class MainActivity extends Activity implements
                     e.printStackTrace();
                 }
             }
-            flag++;
+            if(avcCodec.getM_info()!=null) {
+                flag++;
+            }
         }
     }
 }
